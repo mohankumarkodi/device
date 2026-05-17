@@ -1,6 +1,10 @@
 import { buildHeaders } from '../utils/headers.js'
 
 async function runStep({ stepId, method, url, headers, body, onStepUpdate }) {
+  if (headers['displayId']) {
+    const sep = url.includes('?') ? '&' : '?'
+    url = `${url}${sep}displayId=${encodeURIComponent(headers['displayId'])}`
+  }
   const request = { url, headers, body: body ?? null }
   onStepUpdate({ stepId, status: 'running', request, response: null })
 
@@ -53,69 +57,46 @@ export async function sendOtp({ deviceConfig, flowConfig, onStepUpdate }) {
   })
 }
 
-export async function runOtpFlow({ deviceConfig, flowConfig, onStepUpdate }) {
-  const remainingAfterVerify = ['validate-qr', 'add-item', 'complete-order']
-  const remainingAfterQr = ['add-item', 'complete-order']
-  const remainingAfterAdd = ['complete-order']
-
-  // Step 1.2 — verify OTP
-  let verifyData
-  try {
-    const verifyUrl = `${deviceConfig.environment}/services/stakeholder/api/verify-otp`
-    const verifyHeaders = {
-      ...buildHeaders(deviceConfig),
-      schemeType: flowConfig.schemeType,
-      schemeAdministratorId: deviceConfig.schemeAdminId,
-    }
-    verifyData = await runStep({
-      stepId: 'verify-otp',
-      method: 'POST',
-      url: verifyUrl,
-      headers: verifyHeaders,
-      body: { mobile: flowConfig.mobile, verificationCode: flowConfig.otpCode },
-      onStepUpdate,
-    })
-  } catch (err) {
-    skipSteps(remainingAfterVerify, onStepUpdate)
-    throw err
+export async function verifyOtp({ deviceConfig, flowConfig, onStepUpdate }) {
+  const url = `${deviceConfig.environment}/services/stakeholder/api/verify-otp`
+  const headers = {
+    ...buildHeaders(deviceConfig),
+    schemeType: flowConfig.schemeType,
+    schemeAdministratorId: deviceConfig.schemeAdminId,
   }
-
-  const token = verifyData?.id_token ?? ''
-  return runSharedSteps({ deviceConfig, flowConfig, token, onStepUpdate, remainingAfterQr, remainingAfterAdd })
+  const data = await runStep({
+    stepId: 'verify-otp',
+    method: 'POST',
+    url,
+    headers,
+    body: { mobile: flowConfig.mobile, verificationCode: flowConfig.otpCode },
+    onStepUpdate,
+  })
+  return data?.id_token ?? ''
 }
 
-export async function runQrFlow({ deviceConfig, flowConfig, onStepUpdate }) {
-  const remainingAfterEntity = ['validate-qr', 'add-item', 'complete-order']
-  const remainingAfterQr = ['add-item', 'complete-order']
-  const remainingAfterAdd = ['complete-order']
-
-  // Step 1 — entity token
-  let entityData
-  try {
-    const entityUrl = `${deviceConfig.environment}/services/collection/api/public/entity-token?formattedId=${encodeURIComponent(flowConfig.formattedId)}`
-    entityData = await runStep({
-      stepId: 'entity-token',
-      method: 'GET',
-      url: entityUrl,
-      headers: buildHeaders(deviceConfig),
-      body: undefined,
-      onStepUpdate,
-    })
-  } catch (err) {
-    skipSteps(remainingAfterEntity, onStepUpdate)
-    throw err
-  }
-
-  const token = entityData?.id_token ?? ''
-  return runSharedSteps({ deviceConfig, flowConfig, token, onStepUpdate, remainingAfterQr, remainingAfterAdd })
+export async function getEntityToken({ deviceConfig, flowConfig, onStepUpdate }) {
+  const url = `${deviceConfig.environment}/services/collection/api/public/entity-token?formattedId=${encodeURIComponent(flowConfig.formattedId)}`
+  const data = await runStep({
+    stepId: 'entity-token',
+    method: 'GET',
+    url,
+    headers: buildHeaders(deviceConfig),
+    body: undefined,
+    onStepUpdate,
+  })
+  return data?.id_token ?? ''
 }
 
-async function runSharedSteps({ deviceConfig, flowConfig, token, onStepUpdate, remainingAfterQr, remainingAfterAdd }) {
-  // Step 2 — validate item QR
+export async function validateAndAddItem({ deviceConfig, flowConfig, token, itemIndex, firstOrderId, onStepUpdate }) {
+  const qrStepId = `validate-qr-${itemIndex}`
+  const addStepId = `add-item-${itemIndex}`
+  const isSoundBox = deviceConfig.appCode === 'SBX006'
+
   try {
     const qrUrl = `${deviceConfig.environment}/services/qr-service/api/usi-authentication?usiCode=${encodeURIComponent(flowConfig.itemQrCode)}`
     await runStep({
-      stepId: 'validate-qr',
+      stepId: qrStepId,
       method: 'GET',
       url: qrUrl,
       headers: buildHeaders(deviceConfig, token),
@@ -123,36 +104,212 @@ async function runSharedSteps({ deviceConfig, flowConfig, token, onStepUpdate, r
       onStepUpdate,
     })
   } catch (err) {
-    skipSteps(remainingAfterQr, onStepUpdate)
+    skipSteps([addStepId], onStepUpdate)
     throw err
   }
 
-  // Step 3 — add item
-  let orderData
+  const addUrl = isSoundBox
+    ? `${deviceConfig.environment}/services/collection/api/center/order-item`
+    : `${deviceConfig.environment}/services/collection/api/rvm/order-item`
+
+  const body = isSoundBox
+    ? { qrCode: flowConfig.itemQrCode, ...(firstOrderId != null ? { requestOrderId: firstOrderId } : {}) }
+    : { qrCode: flowConfig.itemQrCode, aiDetectionType: flowConfig.aiDetectionType, itemUrl: flowConfig.itemUrl }
+
+  const orderData = await runStep({
+    stepId: addStepId,
+    method: 'POST',
+    url: addUrl,
+    headers: buildHeaders(deviceConfig, token),
+    body,
+    onStepUpdate,
+  })
+
+  return orderData?.order?.id
+}
+
+function parseRejected(str) {
+  if (!str || !str.trim()) return []
+  try { return JSON.parse(str) } catch { return [] }
+}
+
+function splitCodes(str) {
+  return str.split(',').map(s => s.trim()).filter(Boolean)
+}
+
+export async function runFastScanDriveIn({ deviceConfig, flowConfig, onStepUpdate }) {
+  let entityData
   try {
-    const addUrl = `${deviceConfig.environment}/services/collection/api/rvm/order-item`
-    orderData = await runStep({
-      stepId: 'add-item',
-      method: 'POST',
-      url: addUrl,
-      headers: buildHeaders(deviceConfig, token),
-      body: {
-        qrCode: flowConfig.itemQrCode,
-        aiDetectionType: flowConfig.aiDetectionType,
-        itemUrl: flowConfig.itemUrl,
-      },
+    const url = `${deviceConfig.environment}/services/collection/api/public/entity-token?formattedId=${encodeURIComponent(flowConfig.formattedId)}`
+    entityData = await runStep({
+      stepId: 'entity-token',
+      method: 'GET',
+      url,
+      headers: buildHeaders(deviceConfig),
+      body: undefined,
       onStepUpdate,
     })
   } catch (err) {
-    skipSteps(remainingAfterAdd, onStepUpdate)
+    skipSteps(['drive-in'], onStepUpdate)
     throw err
   }
 
-  const orderId = orderData?.order?.id
-  const price = orderData?.order?.price
+  const token = entityData?.id_token ?? ''
+  const result = await runStep({
+    stepId: 'drive-in',
+    method: 'POST',
+    url: `${deviceConfig.environment}/services/collection/api/order/drive-in`,
+    headers: buildHeaders(deviceConfig, token),
+    body: {
+      entityQr: flowConfig.formattedId,
+      qrCodes: splitCodes(flowConfig.qrCodes),
+      rejectedDetails: parseRejected(flowConfig.rejectedDetails),
+    },
+    onStepUpdate,
+  })
 
-  // Step 4 — complete order
-  await runStep({
+  return result
+}
+
+export async function runFastScanCounting({ deviceConfig, flowConfig, onStepUpdate }) {
+  let entityData
+  try {
+    const url = `${deviceConfig.environment}/services/collection/api/public/entity-token?formattedId=${encodeURIComponent(flowConfig.formattedId)}`
+    entityData = await runStep({
+      stepId: 'entity-token',
+      method: 'GET',
+      url,
+      headers: buildHeaders(deviceConfig),
+      body: undefined,
+      onStepUpdate,
+    })
+  } catch (err) {
+    skipSteps(['counting-started', 'counting-ended'], onStepUpdate)
+    throw err
+  }
+
+  const token = entityData?.id_token ?? ''
+
+  try {
+    await runStep({
+      stepId: 'counting-started',
+      method: 'PUT',
+      url: `${deviceConfig.environment}/services/collection/api/counting/started`,
+      headers: buildHeaders(deviceConfig, token),
+      body: [{ bagCode: flowConfig.bagCode }],
+      onStepUpdate,
+    })
+  } catch (err) {
+    skipSteps(['counting-ended'], onStepUpdate)
+    throw err
+  }
+
+  const result = await runStep({
+    stepId: 'counting-ended',
+    method: 'POST',
+    url: `${deviceConfig.environment}/services/collection/api/counted`,
+    headers: buildHeaders(deviceConfig, token),
+    body: [{
+      bagCode: flowConfig.bagCode,
+      totalCount: Number(flowConfig.totalCount) || 0,
+      qrCodes: splitCodes(flowConfig.qrCodes),
+      rejectedDetails: parseRejected(flowConfig.rejectedDetails),
+    }],
+    onStepUpdate,
+  })
+  return result
+}
+
+export async function handlerLogout({ deviceConfig, onStepUpdate }) {
+  const data = await runStep({
+    stepId: 'handler-logout',
+    method: 'PUT',
+    url: `${deviceConfig.environment}/services/collection/api/public/handler-logout`,
+    headers: buildHeaders(deviceConfig),
+    body: undefined,
+    onStepUpdate,
+  })
+  return data
+}
+
+export async function runVerifyTaskFlow({ deviceConfig, verifyTaskConfig, onStepUpdate }) {
+  let verifyData
+  try {
+    verifyData = await runStep({
+      stepId: 'verify-task-otp',
+      method: 'GET',
+      url: `${deviceConfig.environment}/services/iot/api/public/verify-task-otp?taskOtp=${encodeURIComponent(verifyTaskConfig.taskOtp)}`,
+      headers: buildHeaders(deviceConfig),
+      body: undefined,
+      onStepUpdate,
+    })
+  } catch (err) {
+    skipSteps(['complete-task'], onStepUpdate)
+    throw err
+  }
+
+  if (!verifyData) {
+    skipSteps(['complete-task'], onStepUpdate)
+    return { isVerified: verifyData }
+  }
+
+  const completeData = await runStep({
+    stepId: 'complete-task',
+    method: 'PUT',
+    url: `${deviceConfig.environment}/services/iot/api/public/bag/complete-task`,
+    headers: buildHeaders(deviceConfig),
+    body: undefined,
+    onStepUpdate,
+  })
+
+  return { isVerified: verifyData, taskStatus: completeData?.taskStatus }
+}
+
+export async function updateBag({ deviceConfig, onStepUpdate }) {
+  const data = await runStep({
+    stepId: 'update-bag',
+    method: 'PUT',
+    url: `${deviceConfig.environment}/services/collection/api/public/machine/update-bag`,
+    headers: buildHeaders(deviceConfig),
+    body: undefined,
+    onStepUpdate,
+  })
+  return data
+}
+
+export async function assignBag({ deviceConfig, assignBagConfig, onStepUpdate }) {
+  const data = await runStep({
+    stepId: 'assign-bag',
+    method: 'PUT',
+    url: `${deviceConfig.environment}/services/collection/api/public/machine/assign-bag`,
+    headers: buildHeaders(deviceConfig),
+    body: {
+      code: assignBagConfig.code,
+      materialType: assignBagConfig.materialType,
+    },
+    onStepUpdate,
+  })
+  return data
+}
+
+export async function selfAssign({ deviceConfig, selfAssignConfig, onStepUpdate }) {
+  const params = new URLSearchParams({
+    formattedId: selfAssignConfig.formattedId,
+    schemeCertificate: selfAssignConfig.schemeCertificate,
+  })
+  const data = await runStep({
+    stepId: 'self-assign',
+    method: 'PUT',
+    url: `${deviceConfig.environment}/services/iot/api/public/machine/self-assign?${params}`,
+    headers: buildHeaders(deviceConfig),
+    body: undefined,
+    onStepUpdate,
+  })
+  return data
+}
+
+export async function completeOrder({ deviceConfig, token, orderId, onStepUpdate }) {
+  const result = await runStep({
     stepId: 'complete-order',
     method: 'PUT',
     url: `${deviceConfig.environment}/services/collection/api/order/complete/${orderId}`,
@@ -160,6 +317,5 @@ async function runSharedSteps({ deviceConfig, flowConfig, token, onStepUpdate, r
     body: undefined,
     onStepUpdate,
   })
-
-  return { token, orderId, price }
+  return { price: result?.totalPrice ?? result?.order?.totalPrice ?? result?.order?.price ?? result?.price }
 }

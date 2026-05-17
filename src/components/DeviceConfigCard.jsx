@@ -7,9 +7,9 @@ const ENVIRONMENTS = [
 ]
 
 const APP_CODES = [
-  { label: 'RVM (RVM002)',        value: 'rvm-RVM002' },
-  { label: 'Sound Box (SBX006)', value: 'sound_box-SBX006' },
-  { label: 'Fast Scan (FCI007)', value: 'fast_scan-FCI007' },
+  { label: 'RVM',       value: 'RVM002' },
+  { label: 'Sound Box', value: 'SBX006' },
+  { label: 'Fast Scan', value: 'FCI007' },
 ]
 
 export default function DeviceConfigCard({ config, onChange, disabled }) {
