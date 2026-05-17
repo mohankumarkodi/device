@@ -1,5 +1,9 @@
 import { useState, useCallback } from 'react'
 import { sendOtp, runOtpFlow, runQrFlow } from './api/flowRunner.js'
+import DeviceConfigCard from './components/DeviceConfigCard.jsx'
+import FlowConfigCard from './components/FlowConfigCard.jsx'
+import StepLog from './components/StepLog.jsx'
+import SummaryCard from './components/SummaryCard.jsx'
 
 const OTP_STEPS = [
   { id: 'send-otp',       label: 'Step 1.1 — Send OTP',       status: 'idle', request: null, response: null },
@@ -96,7 +100,11 @@ export default function App() {
           <button className="btn btn--secondary" onClick={handleReset}>Reset</button>
         )}
       </div>
-      <p>Components coming soon...</p>
+
+      <DeviceConfigCard config={deviceConfig} onChange={setDeviceConfig} disabled={isDeviceDisabled} />
+      <FlowConfigCard config={flowConfig} onChange={setFlowConfig} flowPhase={flowPhase} onRunFlow={handleRunFlow} onSubmitOtp={handleSubmitOtp} />
+      <StepLog steps={steps} />
+      <SummaryCard summary={summary} />
     </div>
   )
 }
