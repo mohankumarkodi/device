@@ -114,7 +114,7 @@ export async function validateAndAddItem({ deviceConfig, flowConfig, token, item
 
   const body = isSoundBox
     ? { qrCode: flowConfig.itemQrCode, ...(firstOrderId != null ? { requestOrderId: firstOrderId } : {}) }
-    : { qrCode: flowConfig.itemQrCode, aiDetectionType: flowConfig.aiDetectionType, itemUrl: flowConfig.itemUrl }
+    : { qrCode: flowConfig.itemQrCode, aiDetectionType: flowConfig.aiDetectionType, itemUrl: flowConfig.itemUrl, ...(firstOrderId != null ? { requestOrderId: firstOrderId } : {}) }
 
   const orderData = await runStep({
     stepId: addStepId,
@@ -218,6 +218,33 @@ export async function runFastScanCounting({ deviceConfig, flowConfig, onStepUpda
     onStepUpdate,
   })
   return result
+}
+
+export async function validateScan({ deviceConfig, validateScanConfig, onStepUpdate }) {
+  const data = await runStep({
+    stepId: 'validate-scan',
+    method: 'POST',
+    url: `${deviceConfig.environment}/services/collection/api/presence/validate-scan`,
+    headers: buildHeaders(deviceConfig),
+    body: {
+      qrCode: validateScanConfig.qrCode,
+      scannedAt: new Date().toISOString(),
+    },
+    onStepUpdate,
+  })
+  return data
+}
+
+export async function handlerLogin({ deviceConfig, handlerLoginConfig, onStepUpdate }) {
+  const data = await runStep({
+    stepId: 'handler-login',
+    method: 'PUT',
+    url: `${deviceConfig.environment}/services/collection/api/public/handler-login?qrCode=${encodeURIComponent(handlerLoginConfig.qrCode)}`,
+    headers: buildHeaders(deviceConfig),
+    body: undefined,
+    onStepUpdate,
+  })
+  return data
 }
 
 export async function handlerLogout({ deviceConfig, onStepUpdate }) {

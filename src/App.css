@@ -56,6 +56,17 @@ body {
   color: #374151;
 }
 
+.card-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.card-title-row .card-title { margin-bottom: 0; }
+
+.btn--sm { padding: 5px 12px; font-size: 12px; }
+
 .field-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

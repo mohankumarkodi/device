@@ -3,12 +3,14 @@ import {
   sendOtp, verifyOtp, getEntityToken,
   validateAndAddItem, completeOrder,
   runFastScanDriveIn, runFastScanCounting,
-  handlerLogout, runVerifyTaskFlow, updateBag, assignBag, selfAssign,
+  validateScan, handlerLogin, handlerLogout, runVerifyTaskFlow, updateBag, assignBag, selfAssign,
 } from './api/flowRunner.js'
 import DeviceConfigCard from './components/DeviceConfigCard.jsx'
 import FlowConfigCard from './components/FlowConfigCard.jsx'
 import UpdateBagCard from './components/UpdateBagCard.jsx'
 import VerifyTaskOtpCard from './components/VerifyTaskOtpCard.jsx'
+import ValidateScanCard from './components/ValidateScanCard.jsx'
+import HandlerLoginCard from './components/HandlerLoginCard.jsx'
 import HandlerLogoutCard from './components/HandlerLogoutCard.jsx'
 import AssignBagCard from './components/AssignBagCard.jsx'
 import SelfAssignCard from './components/SelfAssignCard.jsx'
@@ -20,6 +22,8 @@ const FLOW_MODES = [
   { id: 'assign-bag',       label: 'Assign Bag'     },
   { id: 'update-bag',       label: 'Update Bag %'   },
   { id: 'verify-task-otp',  label: 'Verify Task OTP'},
+  { id: 'validate-scan',    label: 'Validate Scan'  },
+  { id: 'handler-login',    label: 'Login'          },
   { id: 'handler-logout',   label: 'Logout'         },
   { id: 'self-assign',      label: 'Self Assign'    },
 ]
@@ -58,6 +62,9 @@ export default function App() {
     materialType: '',
   })
 
+  const [validateScanConfig, setValidateScanConfig] = useState({ qrCode: '' })
+  const [handlerLoginConfig, setHandlerLoginConfig] = useState({ qrCode: '' })
+
   const [selfAssignConfig, setSelfAssignConfig] = useState({
     formattedId: '',
     schemeCertificate: '',
@@ -85,6 +92,38 @@ export default function App() {
     setFirstOrderId(null)
     setCurrentOrderId(null)
     setItemIndex(0)
+  }
+
+  // ── Validate Scan ──────────────────────────────────────────────────
+  const handleValidateScan = async () => {
+    setSummary(null)
+    setSteps([
+      { id: 'validate-scan', label: 'Validate Scan', status: 'idle', request: null, response: null },
+    ])
+    setFlowPhase('running')
+    try {
+      const result = await validateScan({ deviceConfig, validateScanConfig, onStepUpdate: handleStepUpdate })
+      setSummary({ success: true, responseData: result })
+    } catch {
+      setSummary({ success: false })
+    }
+    setFlowPhase('done')
+  }
+
+  // ── Handler Login ──────────────────────────────────────────────────
+  const handleLogin = async () => {
+    setSummary(null)
+    setSteps([
+      { id: 'handler-login', label: 'Handler Login', status: 'idle', request: null, response: null },
+    ])
+    setFlowPhase('running')
+    try {
+      const result = await handlerLogin({ deviceConfig, handlerLoginConfig, onStepUpdate: handleStepUpdate })
+      setSummary({ success: true, responseData: result })
+    } catch {
+      setSummary({ success: false })
+    }
+    setFlowPhase('done')
   }
 
   // ── Handler Logout ─────────────────────────────────────────────────
@@ -277,7 +316,7 @@ export default function App() {
   }
 
   const handleCompleteOrder = async () => {
-    const orderIdToComplete = deviceConfig.appCode === 'SBX006' ? firstOrderId : currentOrderId
+    const orderIdToComplete = firstOrderId
     setFlowPhase('running')
     setSteps(prev => [...prev,
       { id: 'complete-order', label: 'Complete Order', status: 'idle', request: null, response: null },
@@ -309,7 +348,7 @@ export default function App() {
     <div className="app">
       <div className="app-header">
         <h1 className="app-title">IoT Device Simulator</h1>
-        {flowPhase === 'done' && (
+        {steps.length > 0 && flowPhase !== 'running' && (
           <button className="btn btn--secondary" onClick={handleReset}>Reset</button>
         )}
       </div>
@@ -339,6 +378,24 @@ export default function App() {
           onAddItem={handleAddItem}
           onCompleteOrder={handleCompleteOrder}
           hasOrderId={!!currentOrderId}
+        />
+      )}
+
+      {flowMode === 'validate-scan' && (
+        <ValidateScanCard
+          config={validateScanConfig}
+          onChange={setValidateScanConfig}
+          flowPhase={flowPhase}
+          onRun={handleValidateScan}
+        />
+      )}
+
+      {flowMode === 'handler-login' && (
+        <HandlerLoginCard
+          config={handlerLoginConfig}
+          onChange={setHandlerLoginConfig}
+          flowPhase={flowPhase}
+          onRun={handleLogin}
         />
       )}
 
@@ -383,7 +440,7 @@ export default function App() {
         />
       )}
 
-      <StepLog steps={steps} />
+      <StepLog steps={steps} onClear={() => setSteps([])} />
       <SummaryCard summary={summary} />
     </div>
   )
