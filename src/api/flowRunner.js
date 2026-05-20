@@ -339,7 +339,7 @@ export async function assignDevice({ deviceConfig, assignDeviceConfig, onStepUpd
   const data = await runStep({
     stepId: 'assign-device',
     method: 'PUT',
-    url: `${deviceConfig.environment}/api/public/center/assign-device?qrCode=${encodeURIComponent(assignDeviceConfig.qrCode)}`,
+    url: `${deviceConfig.environment}/services/collection/api/public/center/assign-device?qrCode=${encodeURIComponent(assignDeviceConfig.qrCode)}`,
     headers: buildHeaders(deviceConfig),
     body: undefined,
     onStepUpdate,
