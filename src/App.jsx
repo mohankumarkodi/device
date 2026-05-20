@@ -3,7 +3,7 @@ import {
   sendOtp, verifyOtp, getEntityToken,
   validateAndAddItem, completeOrder,
   runFastScanDriveIn, runFastScanCounting,
-  validateScan, handlerLogin, handlerLogout, runVerifyTaskFlow, updateBag, assignBag, selfAssign,
+  validateScan, handlerLogin, handlerLogout, runVerifyTaskFlow, updateBag, assignBag, selfAssign, assignDevice,
 } from './api/flowRunner.js'
 import DeviceConfigCard from './components/DeviceConfigCard.jsx'
 import FlowConfigCard from './components/FlowConfigCard.jsx'
@@ -14,6 +14,7 @@ import HandlerLoginCard from './components/HandlerLoginCard.jsx'
 import HandlerLogoutCard from './components/HandlerLogoutCard.jsx'
 import AssignBagCard from './components/AssignBagCard.jsx'
 import SelfAssignCard from './components/SelfAssignCard.jsx'
+import AssignDeviceCard from './components/AssignDeviceCard.jsx'
 import StepLog from './components/StepLog.jsx'
 import SummaryCard from './components/SummaryCard.jsx'
 
@@ -26,6 +27,7 @@ const FLOW_MODES = [
   { id: 'handler-login',    label: 'Login'          },
   { id: 'handler-logout',   label: 'Logout'         },
   { id: 'self-assign',      label: 'Self Assign'    },
+  { id: 'assign-device',   label: 'Assign Device'  },
 ]
 
 export default function App() {
@@ -64,6 +66,8 @@ export default function App() {
 
   const [validateScanConfig, setValidateScanConfig] = useState({ qrCode: '' })
   const [handlerLoginConfig, setHandlerLoginConfig] = useState({ qrCode: '' })
+
+  const [assignDeviceConfig, setAssignDeviceConfig] = useState({ qrCode: '' })
 
   const [selfAssignConfig, setSelfAssignConfig] = useState({
     formattedId: '',
@@ -207,6 +211,22 @@ export default function App() {
     setFlowPhase('done')
   }
 
+  // ── Assign Device ──────────────────────────────────────────────────
+  const handleAssignDevice = async () => {
+    setSummary(null)
+    setSteps([
+      { id: 'assign-device', label: 'Assign Device to Center', status: 'idle', request: null, response: null },
+    ])
+    setFlowPhase('running')
+    try {
+      const result = await assignDevice({ deviceConfig, assignDeviceConfig, onStepUpdate: handleStepUpdate })
+      setSummary({ success: true, responseData: result })
+    } catch {
+      setSummary({ success: false })
+    }
+    setFlowPhase('done')
+  }
+
   // ── Device flows ───────────────────────────────────────────────────
   const appendItemSteps = (idx) => {
     setSteps(prev => [...prev,
@@ -309,14 +329,14 @@ export default function App() {
     appendItemSteps(idx)
     try {
       const orderId = await validateAndAddItem({ deviceConfig, flowConfig, token: authToken, itemIndex: idx, firstOrderId, onStepUpdate: handleStepUpdate })
-      if (idx === 0) setFirstOrderId(orderId)
+      if (firstOrderId == null) setFirstOrderId(orderId)
       setCurrentOrderId(orderId)
     } catch { /* stay in item-waiting */ }
     setFlowPhase('item-waiting')
   }
 
   const handleCompleteOrder = async () => {
-    const orderIdToComplete = firstOrderId
+    const orderIdToComplete = firstOrderId ?? currentOrderId
     setFlowPhase('running')
     setSteps(prev => [...prev,
       { id: 'complete-order', label: 'Complete Order', status: 'idle', request: null, response: null },
@@ -437,6 +457,15 @@ export default function App() {
           onChange={setSelfAssignConfig}
           flowPhase={flowPhase}
           onRun={handleSelfAssign}
+        />
+      )}
+
+      {flowMode === 'assign-device' && (
+        <AssignDeviceCard
+          config={assignDeviceConfig}
+          onChange={setAssignDeviceConfig}
+          flowPhase={flowPhase}
+          onRun={handleAssignDevice}
         />
       )}
 

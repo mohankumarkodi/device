@@ -335,6 +335,18 @@ export async function selfAssign({ deviceConfig, selfAssignConfig, onStepUpdate 
   return data
 }
 
+export async function assignDevice({ deviceConfig, assignDeviceConfig, onStepUpdate }) {
+  const data = await runStep({
+    stepId: 'assign-device',
+    method: 'PUT',
+    url: `${deviceConfig.environment}/api/public/center/assign-device?qrCode=${encodeURIComponent(assignDeviceConfig.qrCode)}`,
+    headers: buildHeaders(deviceConfig),
+    body: undefined,
+    onStepUpdate,
+  })
+  return data
+}
+
 export async function completeOrder({ deviceConfig, token, orderId, onStepUpdate }) {
   const result = await runStep({
     stepId: 'complete-order',
