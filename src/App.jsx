@@ -3,7 +3,7 @@ import {
   sendOtp, verifyOtp, getEntityToken,
   validateAndAddItem, completeOrder,
   runFastScanDriveIn, runFastScanCounting,
-  validateScan, handlerLogin, handlerLogout, runVerifyTaskFlow, updateBag, assignBag, selfAssign, assignDevice,
+  validateScan, handlerLogin, handlerLogout, runVerifyTaskFlow, updateBag, assignBag, selfAssign, assignDevice, sealBag,
 } from './api/flowRunner.js'
 import DeviceConfigCard from './components/DeviceConfigCard.jsx'
 import FlowConfigCard from './components/FlowConfigCard.jsx'
@@ -15,6 +15,7 @@ import HandlerLogoutCard from './components/HandlerLogoutCard.jsx'
 import AssignBagCard from './components/AssignBagCard.jsx'
 import SelfAssignCard from './components/SelfAssignCard.jsx'
 import AssignDeviceCard from './components/AssignDeviceCard.jsx'
+import SealBagCard from './components/SealBagCard.jsx'
 import StepLog from './components/StepLog.jsx'
 import SummaryCard from './components/SummaryCard.jsx'
 
@@ -28,6 +29,7 @@ const FLOW_MODES = [
   { id: 'handler-logout',   label: 'Logout'         },
   { id: 'self-assign',      label: 'Self Assign'    },
   { id: 'assign-device',   label: 'Assign Device'  },
+  { id: 'seal-bag',        label: 'Seal Bag'       },
 ]
 
 export default function App() {
@@ -68,6 +70,7 @@ export default function App() {
   const [handlerLoginConfig, setHandlerLoginConfig] = useState({ qrCode: '' })
 
   const [assignDeviceConfig, setAssignDeviceConfig] = useState({ qrCode: '' })
+  const [sealBagConfig, setSealBagConfig] = useState({ bagCode: '' })
 
   const [selfAssignConfig, setSelfAssignConfig] = useState({
     formattedId: '',
@@ -220,6 +223,22 @@ export default function App() {
     setFlowPhase('running')
     try {
       const result = await assignDevice({ deviceConfig, assignDeviceConfig, onStepUpdate: handleStepUpdate })
+      setSummary({ success: true, responseData: result })
+    } catch {
+      setSummary({ success: false })
+    }
+    setFlowPhase('done')
+  }
+
+  // ── Seal Bag ───────────────────────────────────────────────────────
+  const handleSealBag = async () => {
+    setSummary(null)
+    setSteps([
+      { id: 'seal-bag', label: 'Seal Bag', status: 'idle', request: null, response: null },
+    ])
+    setFlowPhase('running')
+    try {
+      const result = await sealBag({ deviceConfig, sealBagConfig, onStepUpdate: handleStepUpdate })
       setSummary({ success: true, responseData: result })
     } catch {
       setSummary({ success: false })
@@ -466,6 +485,15 @@ export default function App() {
           onChange={setAssignDeviceConfig}
           flowPhase={flowPhase}
           onRun={handleAssignDevice}
+        />
+      )}
+
+      {flowMode === 'seal-bag' && (
+        <SealBagCard
+          config={sealBagConfig}
+          onChange={setSealBagConfig}
+          flowPhase={flowPhase}
+          onRun={handleSealBag}
         />
       )}
 

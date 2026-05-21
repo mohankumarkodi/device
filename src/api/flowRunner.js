@@ -335,6 +335,18 @@ export async function selfAssign({ deviceConfig, selfAssignConfig, onStepUpdate 
   return data
 }
 
+export async function sealBag({ deviceConfig, sealBagConfig, onStepUpdate }) {
+  const data = await runStep({
+    stepId: 'seal-bag',
+    method: 'POST',
+    url: `${deviceConfig.environment}/services/collection/api/public/machine/bag-seal?bagCode=${encodeURIComponent(sealBagConfig.bagCode)}`,
+    headers: buildHeaders(deviceConfig),
+    body: undefined,
+    onStepUpdate,
+  })
+  return data
+}
+
 export async function assignDevice({ deviceConfig, assignDeviceConfig, onStepUpdate }) {
   const data = await runStep({
     stepId: 'assign-device',
