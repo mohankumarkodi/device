@@ -4,6 +4,7 @@ const ENVIRONMENTS = [
   { label: 'UAT',         value: 'https://uat-api.ddrs.recykal.com' },
   { label: 'Demo',        value: 'https://demo.api.ddrs.recykal.com' },
   { label: 'Production',  value: 'https://api.ddrs.recykal.com' },
+  { label: 'Load Test',   value: 'https://api.loadtest.ddrs.recykal.com' },
 ]
 
 const APP_CODES = [
