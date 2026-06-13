@@ -5,6 +5,7 @@ const ENVIRONMENTS = [
   { label: 'Demo',        value: 'https://demo.api.ddrs.recykal.com' },
   { label: 'Production',  value: 'https://api.ddrs.recykal.com' },
   { label: 'Load Test',   value: 'https://api.loadtest.ddrs.recykal.com' },
+  { label: 'TASMAC',     value: 'https://api.tasmac.ddrs.recykal.com' },
 ]
 
 const APP_CODES = [
