@@ -50,6 +50,7 @@ export default function App() {
     otpCode: '',
     formattedId: '',
     itemQrCode: '',
+    usiService: 'qr-service',
     aiDetectionType: '',
     itemUrl: '',
     fastScanFlow: 'drive-in',

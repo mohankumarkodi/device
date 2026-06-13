@@ -94,8 +94,7 @@ export async function validateAndAddItem({ deviceConfig, flowConfig, token, item
   const isSoundBox = deviceConfig.appCode === 'SBX006'
 
   try {
-    const isLoadTest = deviceConfig.environment === 'https://api.loadtest.ddrs.recykal.com'
-    const usiPath = isLoadTest ? 'services/collection/api/usi-authentication' : 'services/qr-service/api/usi-authentication'
+    const usiPath = `services/${flowConfig.usiService}/api/usi-authentication`
     const qrUrl = `${deviceConfig.environment}/${usiPath}?usiCode=${encodeURIComponent(flowConfig.itemQrCode)}`
     await runStep({
       stepId: qrStepId,

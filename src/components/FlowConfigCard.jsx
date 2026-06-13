@@ -126,6 +126,14 @@ export default function FlowConfigCard({ config, onChange, flowPhase, appCode, o
         {showItemFields && (
           <>
             <label className="field">
+              <span>USI Service</span>
+              <select value={config.usiService} onChange={set('usiService')} disabled={isRunning}>
+                <option value="qr-service">QR Service</option>
+                <option value="collection">Collection</option>
+              </select>
+            </label>
+
+            <label className="field">
               <span>Item QR Code</span>
               <input type="text" placeholder="QR-ABC123" value={config.itemQrCode} onChange={set('itemQrCode')} disabled={isRunning} />
             </label>
