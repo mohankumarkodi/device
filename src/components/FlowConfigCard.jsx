@@ -14,6 +14,7 @@ export default function FlowConfigCard({ config, onChange, flowPhase, appCode, o
   const isFastScan    = appCode === 'FCI007'
   const isSoundBox    = appCode === 'SBX006'
   const isOtp         = config.authMethod === 'otp'
+  const isVoucher     = config.authMethod === 'voucher'
 
   // Item fields visible for OTP only after token obtained; for QR always; never for Fast Scan
   const showItemFields = !isFastScan && (isTokenReady || isItemWaiting || (!isOtp && !isOtpWaiting))
@@ -78,6 +79,7 @@ export default function FlowConfigCard({ config, onChange, flowPhase, appCode, o
               <select value={config.authMethod} onChange={set('authMethod')} disabled={authLocked}>
                 <option value="otp">OTP Flow</option>
                 <option value="qr">Entity QR Scan</option>
+                <option value="voucher">Voucher (No User)</option>
               </select>
             </label>
 
@@ -106,7 +108,7 @@ export default function FlowConfigCard({ config, onChange, flowPhase, appCode, o
                   </button>
                 </div>
               </>
-            ) : (
+            ) : isVoucher ? null : (
               <label className="field">
                 <span>Formatted ID (Entity QR)</span>
                 <input type="text" placeholder="USR001" value={config.formattedId} onChange={set('formattedId')} disabled={authLocked} />

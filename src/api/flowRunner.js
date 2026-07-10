@@ -88,6 +88,19 @@ export async function getEntityToken({ deviceConfig, flowConfig, onStepUpdate })
   return data?.id_token ?? ''
 }
 
+export async function getVoucherToken({ deviceConfig, onStepUpdate }) {
+  const url = `${deviceConfig.environment}/services/stakeholder/api/voucher-token`
+  const data = await runStep({
+    stepId: 'voucher-token',
+    method: 'GET',
+    url,
+    headers: buildHeaders(deviceConfig),
+    body: undefined,
+    onStepUpdate,
+  })
+  return data?.id_token ?? ''
+}
+
 export async function validateAndAddItem({ deviceConfig, flowConfig, token, itemIndex, firstOrderId, onStepUpdate }) {
   const qrStepId = `validate-qr-${itemIndex}`
   const addStepId = `add-item-${itemIndex}`

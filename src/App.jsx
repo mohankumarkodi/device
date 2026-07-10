@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import {
-  sendOtp, verifyOtp, getEntityToken,
+  sendOtp, verifyOtp, getEntityToken, getVoucherToken,
   validateAndAddItem, completeOrder,
   runFastScanDriveIn, runFastScanCounting,
   validateScan, handlerLogin, handlerLogout, runVerifyTaskFlow, updateBag, assignBag, selfAssign, assignDevice, sealBag,
@@ -310,6 +310,19 @@ export default function App() {
       try {
         await sendOtp({ deviceConfig, flowConfig, onStepUpdate: handleStepUpdate })
         setFlowPhase('otp-waiting')
+      } catch {
+        setFlowPhase('done')
+        setSummary({ success: false })
+      }
+    } else if (flowConfig.authMethod === 'voucher') {
+      setSteps([
+        { id: 'voucher-token', label: 'Step 1 — Generate Voucher Token', status: 'idle', request: null, response: null },
+      ])
+      setFlowPhase('running')
+      try {
+        const token = await getVoucherToken({ deviceConfig, onStepUpdate: handleStepUpdate })
+        setAuthToken(token)
+        await runFirstItem(token)
       } catch {
         setFlowPhase('done')
         setSummary({ success: false })
