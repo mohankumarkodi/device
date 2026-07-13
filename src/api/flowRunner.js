@@ -151,24 +151,31 @@ function splitCodes(str) {
   return str.split(',').map(s => s.trim()).filter(Boolean)
 }
 
+async function getFastScanToken({ deviceConfig, flowConfig, onStepUpdate }) {
+  if (flowConfig.authMethod === 'voucher') {
+    return getVoucherToken({ deviceConfig, onStepUpdate })
+  }
+  const url = `${deviceConfig.environment}/services/collection/api/public/entity-token?formattedId=${encodeURIComponent(flowConfig.formattedId)}`
+  const data = await runStep({
+    stepId: 'entity-token',
+    method: 'GET',
+    url,
+    headers: buildHeaders(deviceConfig),
+    body: undefined,
+    onStepUpdate,
+  })
+  return data?.id_token ?? ''
+}
+
 export async function runFastScanDriveIn({ deviceConfig, flowConfig, onStepUpdate }) {
-  let entityData
+  let token
   try {
-    const url = `${deviceConfig.environment}/services/collection/api/public/entity-token?formattedId=${encodeURIComponent(flowConfig.formattedId)}`
-    entityData = await runStep({
-      stepId: 'entity-token',
-      method: 'GET',
-      url,
-      headers: buildHeaders(deviceConfig),
-      body: undefined,
-      onStepUpdate,
-    })
+    token = await getFastScanToken({ deviceConfig, flowConfig, onStepUpdate })
   } catch (err) {
     skipSteps(['drive-in'], onStepUpdate)
     throw err
   }
 
-  const token = entityData?.id_token ?? ''
   const result = await runStep({
     stepId: 'drive-in',
     method: 'POST',
@@ -186,23 +193,13 @@ export async function runFastScanDriveIn({ deviceConfig, flowConfig, onStepUpdat
 }
 
 export async function runFastScanCounting({ deviceConfig, flowConfig, onStepUpdate }) {
-  let entityData
+  let token
   try {
-    const url = `${deviceConfig.environment}/services/collection/api/public/entity-token?formattedId=${encodeURIComponent(flowConfig.formattedId)}`
-    entityData = await runStep({
-      stepId: 'entity-token',
-      method: 'GET',
-      url,
-      headers: buildHeaders(deviceConfig),
-      body: undefined,
-      onStepUpdate,
-    })
+    token = await getFastScanToken({ deviceConfig, flowConfig, onStepUpdate })
   } catch (err) {
     skipSteps(['counting-started', 'counting-ended'], onStepUpdate)
     throw err
   }
-
-  const token = entityData?.id_token ?? ''
 
   try {
     await runStep({

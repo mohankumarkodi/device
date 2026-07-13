@@ -37,9 +37,19 @@ export default function FlowConfigCard({ config, onChange, flowPhase, appCode, o
             </label>
 
             <label className="field">
-              <span>Formatted ID (Entity QR)</span>
-              <input type="text" placeholder="USR001" value={config.formattedId} onChange={set('formattedId')} disabled={isRunning} />
+              <span>Auth Method</span>
+              <select value={config.authMethod} onChange={set('authMethod')} disabled={isRunning}>
+                <option value="qr">Entity QR Scan</option>
+                <option value="voucher">Voucher (No User)</option>
+              </select>
             </label>
+
+            {!isVoucher && (
+              <label className="field">
+                <span>Formatted ID (Entity QR)</span>
+                <input type="text" placeholder="USR001" value={config.formattedId} onChange={set('formattedId')} disabled={isRunning} />
+              </label>
+            )}
 
             {config.fastScanFlow === 'counting' && (
               <>

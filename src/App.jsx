@@ -276,13 +276,17 @@ export default function App() {
     // ── Fast Scan (FCI007) ─────────────────────────────────────────
     if (deviceConfig.appCode === 'FCI007') {
       const isDriveIn = flowConfig.fastScanFlow === 'drive-in'
+      const isVoucher = flowConfig.authMethod === 'voucher'
+      const authStep = isVoucher
+        ? { id: 'voucher-token', label: 'Step 1 — Generate Voucher Token', status: 'idle', request: null, response: null }
+        : { id: 'entity-token',  label: 'Step 1 — Entity QR Scan',         status: 'idle', request: null, response: null }
       setSteps(isDriveIn
         ? [
-            { id: 'entity-token', label: 'Step 1 — Entity QR Scan', status: 'idle', request: null, response: null },
+            authStep,
             { id: 'drive-in',     label: 'Step 2 — Drive-In',        status: 'idle', request: null, response: null },
           ]
         : [
-            { id: 'entity-token',     label: 'Step 1 — Entity QR Scan',   status: 'idle', request: null, response: null },
+            authStep,
             { id: 'counting-started', label: 'Step 2 — Counting Started', status: 'idle', request: null, response: null },
             { id: 'counting-ended',   label: 'Step 3 — Counting Ended',   status: 'idle', request: null, response: null },
           ]
